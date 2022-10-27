@@ -1,0 +1,46 @@
+version: '3.4'
+
+networks:
+  mensageria-network:
+    driver: 
+      bridge
+
+services:
+  modulo3-semana9-mensageria-api-producer:
+    image: ${DOCKER_REGISTRY-}modulo3semana9mensageriaapiproducer
+    build:
+      context: .
+      dockerfile: modulo3-semana9-mensageria-api-producer/Dockerfile
+    networks:
+      - mensageria-network
+    links:
+      - rabbitmq
+    depends_on:
+      - rabbitmq
+      
+  modulo3-semana9-mensageria-academia-consumer:
+    image: ${DOCKER_REGISTRY-}modulo3semana9mensageriaacademiaconsumer
+    build:
+      context: .
+      dockerfile: modulo3-semana9-mensageria-academia-consumer/Dockerfile
+    networks:
+      - mensageria-network
+    links:
+      - rabbitmq
+    depends_on:
+      - rabbitmq
+      - modulo3-semana9-mensageria-api-producer
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - /docker_conf/rabbitmq/data/:/var/lib/rabbitmq/
+    environment:
+      - RABBITMQ_DEFAULT_USER = guest
+      - RABBITMQ_DEFAULT_PASSWORD = guest
+    restart: always
+    networks:
+      - mensageria-network

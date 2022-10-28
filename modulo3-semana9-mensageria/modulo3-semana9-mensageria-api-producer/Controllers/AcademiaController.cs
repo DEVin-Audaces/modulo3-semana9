@@ -2,6 +2,8 @@
 using Microsoft.AspNetCore.Mvc;
 using RabbitMQ.Client;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace modulo3_semana9_mensageria_api_producer.Controllers
 {
@@ -59,9 +61,66 @@ namespace modulo3_semana9_mensageria_api_producer.Controllers
             return Ok(true);
         }
 
+        [HttpGet("musculacao/{condicao}")]
+        public ActionResult<bool> Musculacao(bool condicao)
+        {
+
+            var factory = ConnectionFactory();
+
+            using (var connection = factory.CreateConnection())
+            {
+                using (var channel = connection.CreateModel())
+                {
+
+                    while (true)
+                    {
+                        channel.ExchangeDeclare("musculacao-exchange", "direct");
+                        channel.QueueDeclare(queue: "musculacao-queue",
+                                             durable: true,
+                                             exclusive: false,
+                                             autoDelete: false);
+
+                        channel.QueueBind(queue: "musculacao-queue",
+                                          exchange: "musculacao-exchange",
+                                          routingKey: "musculacao-route");
+
+                        List<Treino> treino = new List<Treino>();
+
+                        if (condicao)
+                        {
+                            for (int i = 0; i < 1000; i++)
+                            {
+                                //Mais carga, menos repeticoes
+                                treino.Add(new(50, 3, "supino", DateTime.Now));
+                            }
+                        }
+                        else
+                        {
+                            for (int i = 0; i < 1500; i++)
+                            {
+                                //Mais repeticoes, menos carga
+                                treino.Add(new(20, 5, "supino", DateTime.Now));
+                            }
+                        }
+
+                        string jsonString = JsonSerializer.Serialize(treino);
+                        var body = Encoding.UTF8.GetBytes(jsonString);
+
+                        channel.BasicPublish(exchange: "musculacao-exchange",
+                                             routingKey: "musculacao-route",
+                                             body: body);
+
+                        condicao = !condicao;
+                    }
+                }
+            }
+
+            return Ok(true);
+        }
+
         /// <summary>
         /// Criar uma ConnectionFactory
-        /// Configuracao da mensageria
+        /// Configuracao da mensageria no producer
         /// </summary>
         /// <returns></returns>
         private static IConnectionFactory ConnectionFactory()
@@ -75,4 +134,6 @@ namespace modulo3_semana9_mensageria_api_producer.Controllers
             return factory;
         }
     }
+
+    public record Treino(int Carga, int Repetir, string ExercicoExecutado, DateTime DataHora);
 }
